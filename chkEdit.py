@@ -6,7 +6,7 @@
 import os
 import time
 from datetime import timedelta
-
+import re
 #---------------------------------------------------
 #--chkEdit: alerts if archive file no longer updates
 #---------------------------------------------------
@@ -20,8 +20,13 @@ def chkEdit(archive,notify=[]):
     output: /tmp/mta/warnArchive-{archiveTail}.out
             mail to mtadude + notify
     """    
- 
-
+    if isinstance(notify,str):
+        notify = notify.split()
+    elif not isinstance(notify,list):
+        raise TypeError("Notify arguement should be list or space-separated string of notifiers")
+     
+    sendTo = ['william.aaron@cfa.harvard.edu'] + notify 
+#    sendTo = ['mtadude@cfa.harvard.edu'] + notify
     warndir = "/tmp/mta"
 
     if (not os.path.exists(warndir)):
@@ -30,7 +35,18 @@ def chkEdit(archive,notify=[]):
     archiveTail = os.path.basename(os.path.normpath(archive))
     warnfile = warndir + f"/warnArchive-{archiveTail}.out"
 
-
+    with open('archivePeriod','r') as f:
+        data = [line.strip() for line in f.readlines()]
+        
+    
+    for ent in data:
+        atemp = re.split(':', ent)
+        fileName = atemp[0].strip()
+        per = atemp[1].strip()
+        if fileName == archiveTail:
+            period = int(per)
+            break
+    #TODO add error handling for period not being assigned, meaing archive file name doesn't match anything in archivePeriod    
 
     lastEdit = os.path.getmtime(archive)
     currTime = time.time()
@@ -39,10 +55,8 @@ def chkEdit(archive,notify=[]):
     lastEdit = time.localtime(lastEdit)
     currTime = time.localtime(currTime)
 
-    period = 60
 
     if diff > period:
-        period = period + 100000000
         if (os.path.exists(warnfile)):
             os.system(f'date >> {warnfile}')
         else:
@@ -53,8 +67,10 @@ def chkEdit(archive,notify=[]):
             warnhandle.write(f"Diff: {timedelta(seconds = diff)}\n")
             warnhandle.write(f"Max Period: {timedelta(seconds = period)}\n")
             warnhandle.close()
-            os.system(f'cat {warnfile} | mailx -s "Archive File: {archiveTail} Not Updating" waaron')
+            cmd = f'cat {warnfile} | mailx -s "Archive File: {archiveTail} Not Updating" '
+            cmd = cmd + ' '.join(sendTo)
+            os.system(cmd)
 
 
 if __name__ == "__main__":
-    chkEdit("/home/waaron/git/mta_comm_func/test.test")
+    chkEdit("/home/waaron/git/mta_comm_func/test.test", 'waaron')
