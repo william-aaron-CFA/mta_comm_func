@@ -11,6 +11,10 @@ import re
 #--chkEdit: alerts if archive file no longer updates
 #---------------------------------------------------
 
+#ArchivePeriod file to be stored in mcf package location
+locArcPer = os.path.dirname(__file__)
+locArcPer = locArcPer + '/archivePeriod'
+
 def chkEdit(archive,notify=[]):
     """
     alerts if archive file no longer updates
@@ -34,13 +38,18 @@ def chkEdit(archive,notify=[]):
     
     archiveTail = os.path.basename(os.path.normpath(archive))
     warnfile = warndir + f"/warnArchive-{archiveTail}.out"
-
-    with open('archivePeriod','r') as f:
-        data = [line.strip() for line in f.readlines()]
+    
+    #Read in targeted Archive File's maximum period before alerting
+    data = []
+    with open(locArcPer,'r') as f:
+        for line in f.readlines():
+            if line[0] != "#":
+                data.append(line.strip())
         
     
     for ent in data:
         atemp = re.split(':', ent)
+        print(atemp)
         fileName = atemp[0].strip()
         per = atemp[1].strip()
         if fileName == archiveTail:
@@ -55,7 +64,7 @@ def chkEdit(archive,notify=[]):
     lastEdit = time.localtime(lastEdit)
     currTime = time.localtime(currTime)
 
-
+    #If it has been too long, record tmp file and send alert.
     if diff > period:
         if (os.path.exists(warnfile)):
             os.system(f'date >> {warnfile}')
